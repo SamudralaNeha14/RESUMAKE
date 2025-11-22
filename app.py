@@ -87,8 +87,6 @@ if 'chat_history_general' not in st.session_state:
     st.session_state.chat_history_general = []
 if 'chat_history_guidance' not in st.session_state:
     st.session_state.chat_history_guidance = []
-if 'chat_history_interview' not in st.session_state:
-    st.session_state.chat_history_interview = []
 if 'uploaded_resume' not in st.session_state:
     st.session_state.uploaded_resume = ""
 
@@ -805,7 +803,7 @@ elif st.session_state.page == "AI Assistant":
     if not initial_api_key or not llm:
         st.error("⚠️ Please configure your Groq API key!")
     else:
-        assist_mode = st.radio("Choose Mode:", ["General Chat", "Resume Guidance", "Interview Prep"], horizontal=True)
+        assist_mode = st.radio("Choose Mode:", ["General Chat", "Resume Guidance"], horizontal=True)
         
         if assist_mode == "General Chat":
             st.subheader("💬 Career Chat")
@@ -953,133 +951,3 @@ elif st.session_state.page == "AI Assistant":
                 if st.session_state.chat_history_guidance and st.button("🗑️ Clear History", key="clear_guidance"):
                     st.session_state.chat_history_guidance = []
                     st.rerun()
-        
-        elif assist_mode == "Interview Prep":
-            st.subheader("🎤 Interview Preparation")
-            
-            st.markdown("### 📚 Interview Resources")
-            
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                interview_type = st.selectbox(
-                    "Select Interview Type:",
-                    ["Behavioral", "Technical", "Situational", "Case Study", "Panel"]
-                )
-            
-            with col2:
-                industry = st.text_input("Your Industry/Role:", placeholder="e.g., Software Engineering, Marketing")
-            
-            col1, col2, col3 = st.columns(3)
-            
-            with col1:
-                if st.button("❓ Generate Questions", use_container_width=True):
-                    with st.spinner("Generating interview questions..."):
-                        chain = ChatPromptTemplate.from_messages([
-                            ("system", "You are an interview coach. Generate relevant interview questions."),
-                            ("human", "Generate 5 {interview_type} interview questions for a {industry} role.")
-                        ]) | llm
-                        
-                        response = chain.invoke({
-                            "interview_type": interview_type,
-                            "industry": industry or "general professional"
-                        })
-                        st.info(response.content)
-            
-            with col2:
-                if st.button("💬 Practice STAR Method", use_container_width=True):
-                    st.markdown("""
-                    ### STAR Method Framework""")
-                    
-                    st.markdown("""**S - Situation**: Describe the situation/task""")
-                    st.markdown("""**T - Task**: Explain your role or responsibility""")
-                    st.markdown("""**A - Action**: Detail the specific actions you took""")
-                    st.markdown("""**R - Result**: Share the measurable results achieved""")
-                    
-                    st.markdown("""**Example:** "In my role at [Company], I was tasked with [Task]. I [Action]. This resulted in [Result]."
-                    """)
-            
-            with col3:
-                if st.button("🎯 Mock Interview Tips", use_container_width=True):
-                    st.success("""
-                    ✅ **Interview Tips:**
-                    - Research the company thoroughly
-                    - Prepare 3-5 stories using STAR method
-                    - Practice out loud before the interview
-                    - Dress appropriately for the role
-                    - Arrive/log in 5-10 minutes early
-                    - Ask thoughtful questions about the role
-                    - Send thank you email within 24 hours
-                    - Mirror the interviewer's communication style
-                    """)
-            
-            st.markdown("---")
-            
-            st.markdown("### 🎤 Practice Interview")
-            
-            practice_type = st.selectbox("Practice Question Type:", ["Random", "Behavioral", "Technical"], key="practice_type")
-            
-            for message in st.session_state.chat_history_interview:
-                if isinstance(message, dict) and "role" in message:
-                    if message["role"] == "user":
-                        st.markdown("""
-                        <div style='background-color: #04027a; padding: 15px; border-radius: 8px; margin: 10px 0; border-left: 4px solid #1f77b4;'>
-                            <strong>👤 You:</strong><br>
-                            """ + message['content'] + """
-                        </div>
-                        """, unsafe_allow_html=True)
-                    else:
-                        st.markdown("""
-                        <div style='background-color: #0a0a0a; padding: 15px; border-radius: 8px; margin: 10px 0; border-left: 4px solid #4CAF50;'>
-                            <strong>🎤 Interviewer:</strong><br>
-                            """ + message['content'] + """
-                        </div>
-                        """, unsafe_allow_html=True)
-            
-            if st.button("🎤 Get Interview Question", use_container_width=True, key="get_question"):
-                with st.spinner("Generating question..."):
-                    chain = ChatPromptTemplate.from_messages([
-                        ("system", f"You are a professional interviewer. Ask a {practice_type.lower()} interview question."),
-                        ("human", "Ask me a {practice_type} interview question for {industry} role.")
-                    ]) | llm
-                    
-                    response = chain.invoke({
-                        "practice_type": practice_type,
-                        "industry": industry or "general professional"
-                    })
-                    
-                    st.session_state.chat_history_interview.append({
-                        "role": "interviewer",
-                        "content": response.content
-                    })
-                    st.rerun()
-            
-            if len(st.session_state.chat_history_interview) > 0 and st.session_state.chat_history_interview[-1].get("role") == "interviewer":
-                user_answer = st.text_area("Your Answer:", height=150, key="interview_answer")
-                
-                if st.button("📝 Submit Answer & Get Feedback", use_container_width=True):
-                    if user_answer.strip():
-                        with st.spinner("Analyzing your answer..."):
-                            st.session_state.chat_history_interview.append({
-                                "role": "user",
-                                "content": user_answer
-                            })
-                            
-                            chain = ChatPromptTemplate.from_messages([
-                                ("system", "You are an interview coach. Provide constructive feedback on interview answers."),
-                                ("human", "Answer: {answer}\n\nProvide feedback on: clarity, relevance, use of STAR method, confidence indicators.")
-                            ]) | llm
-                            
-                            response = chain.invoke({"answer": user_answer})
-                            
-                            st.session_state.chat_history_interview.append({
-                                "role": "interviewer",
-                                "content": f"**Feedback:** {response.content}"
-                            })
-                            st.rerun()
-                    else:
-                        st.error("Please provide an answer before submitting.")
-            
-            if st.session_state.chat_history_interview and st.button("🗑️ Clear Practice Session", key="clear_interview"):
-                st.session_state.chat_history_interview = []
-                st.rerun()
